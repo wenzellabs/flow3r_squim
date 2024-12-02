@@ -1,0 +1,12 @@
+[app]
+name = "SQUIM"
+category = "Music"
+wifi_preference = true
+[entry]
+class = "SQUIM"
+[metadata]
+author = "mazzoo"
+license = " GPL-3.0-only"
+url = "https://github.com/wenzellabs/flow3r_squim"
+description = "square immersion, plays chords and notes in square waves"
+version = 1
