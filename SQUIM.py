@@ -77,7 +77,7 @@ class SQUIM(Application):
         self.midi2frequency = [440 * (2 ** ((note - 69) / 12)) for note in range(128)]
         self.poly = POLYPHONY
         self.note_buffer = NoteBuffer()
-        self.last_note = 'py'
+        self.last_note = '__'
         self._build_synth()
 
     def marquee(self, the_text, width, counter):
@@ -251,11 +251,11 @@ class SQUIM(Application):
 
 
     def handle_Title(self, p:TLVPacketTitle) -> None:
-        self.title = bytes(p.title).decode('ascii').rstrip('\x00')
+        self.title = '     ' + bytes(p.title).decode('ascii').rstrip('\x00') + '     '
         print(f'{self.title=}')
 
     def handle_Artist(self, p:TLVPacketArtist) -> None:
-        self.artist = bytes(p.artist).decode('ascii').rstrip('\x00')
+        self.artist = '     ' + bytes(p.artist).decode('ascii').rstrip('\x00') + '     '
         print(f'{self.artist=}')
 
     def handle_Time(self, p:TLVPacketTime) -> None:
