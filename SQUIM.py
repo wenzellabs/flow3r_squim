@@ -24,6 +24,21 @@ POLYPHONY = 32
 ANIM_MS = 100
 DB_MUTE = -9999
 
+note_names = [
+    'C',
+    'C#',
+    'D',
+    'D#',
+    'E',
+    'F',
+    'F#',
+    'G',
+    'G#',
+    'A',
+    'A#',
+    'B',
+]
+
 class NoteBuffer:
     def __init__(self):
         self.buffer = []
@@ -53,7 +68,7 @@ class SQUIM(Application):
         self.udp.setblocking(0)
 
         self.artist = 'mazzoo'
-        self.title = 'square immersion'
+        self.title = '    square immersion    '
         self.mqc = 0 # marquee counter
 
         self.powerup_time = time.ticks_us()
@@ -61,6 +76,7 @@ class SQUIM(Application):
         self.midi2frequency = [440 * (2 ** ((note - 69) / 12)) for note in range(128)]
         self.poly = POLYPHONY
         self.note_buffer = NoteBuffer()
+        self.last_note = 'py'
         self._build_synth()
 
     def marquee(self, the_text, width, counter):
@@ -105,6 +121,7 @@ class SQUIM(Application):
         ctx.rgba(0., .6, 1, .9).move_to(-110, -25).text(f'{self.marquee(self.artist, 17, self.mqc)}')
         ctx.rgba(0., .6, 1, .9).move_to(-110, 25).text(f'{self.marquee(self.title, 17, self.mqc)}')
         #ctx.rgba(5., .5, .8, .8).move_to(-110, 55).text(f'{self.anim_ms}')
+        ctx.rgba(5., .5, .8, .8).move_to(-20, 100).text(f'{self.last_note}')
 
     def think(self, ins: InputState, delta_ms: int) -> None:
         self.input.think(ins, delta_ms)
@@ -202,6 +219,7 @@ class SQUIM(Application):
                 for i in range(self.poly):
                     if self._osc_idle[i]:
                         self._osc[i].signals.pitch.freq = self.midi2frequency[note[1]]
+                        self.last_note = note_names[note[1]%12] + str(note[1]//12-1)
                         self._mixer.signals.input_gain[i].dB = 0
                         self._osc_idle[i] = False
                         found = True
