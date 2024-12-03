@@ -4,6 +4,7 @@ import st3m.run
 
 from math import cos, sin
 from socket import AF_INET, SOCK_DGRAM, socket
+from random import randint
 import heapq
 import time
 
@@ -46,7 +47,7 @@ class NoteBuffer:
     def add_note(self, timestamp, midinote, on_off):
         # sort in notes by timestamp
         heapq.heappush(self.buffer, (timestamp, midinote, on_off))
-        print(f'adding note_{"on" if on_off else "off"} {midinote}')
+        #print(f'adding note_{"on" if on_off else "off"} {midinote}')
 
     def poll_next(self, due):
         if self.buffer and self.buffer[0][0] <= due:
@@ -115,11 +116,11 @@ class SQUIM(Application):
             ctx.rectangle(-self.radius, -self.radius, self.radius*2, self.radius*2)
             ctx.restore()
             ctx.fill()
-        ctx.rgba(0., .8, .5, .8).move_to(-50, -50).text('SQUIM')
+        ctx.rgba(0., .8, .5, .8).move_to(-50, -60).text('SQUIM')
 
         self.mqc += 1
         ctx.rgba(0., .6, 1, .9).move_to(-110, -25).text(f'{self.marquee(self.artist, 17, self.mqc)}')
-        ctx.rgba(0., .6, 1, .9).move_to(-110, 25).text(f'{self.marquee(self.title, 17, self.mqc)}')
+        ctx.rgba(0., .6, 1, .9).move_to(-110, 37).text(f'{self.marquee(self.title, 17, self.mqc)}')
         #ctx.rgba(5., .5, .8, .8).move_to(-110, 55).text(f'{self.anim_ms}')
         ctx.rgba(5., .5, .8, .8).move_to(-20, 100).text(f'{self.last_note}')
 
@@ -172,17 +173,82 @@ class SQUIM(Application):
             print(f'got UNHANDLED {p.__class__.__name__}')
 
     def handle_NoteOnOff(self, p:TLVPacketNoteOnOff) -> None:
-        print(f'NoteOnOff for {(p.off-p.on) // 1000} ms we play {p.note}')
+        #print(f'NoteOnOff for {(p.off-p.on) // 1000} ms we play {p.note}')
         self.note_buffer.add_note(p.on, p.note, True)
         self.note_buffer.add_note(p.off, p.note, False)
 
     def handle_Chord(self, p:TLVPacketChord) -> None:
-        print(f'Chord for {(p.off-p.on) // 1000} ms we play {[n for n in p.note if n != 128]}')
-        # start simple, play all chord notes
+        #print(f'Chord for {(p.off-p.on) // 1000} ms we play {[n for n in p.note if n != 128]}')
+
+        def list_shuffle(lst): # no random.shuffle in micropython
+            for i in range(len(lst) - 1, 0, -1):
+                j = randint(0, i)
+                lst[i], lst[j] = lst[j], lst[i]
+
+        notes = []
         for n in p.note:
             if n != 128:
+                notes.append(n)
+
+        algo = randint(0, 9)
+        if algo == 0:
+            # rising
+            notes.sort()
+            self.q_chord_simple(notes, p.on, p.off)
+        elif algo == 1:
+            # falling
+            notes.sort()
+            notes.reverse()
+            self.q_chord_simple(notes, p.on, p.off)
+        elif algo == 2:
+            # rising adding one octave below
+            notes.extend([x - 12 for x in notes if x >= 12])
+            notes.sort()
+            self.q_chord_simple(notes, p.on, p.off)
+        elif algo == 3:
+            # falling adding one octave below
+            notes.extend([x - 12 for x in notes if x >= 12])
+            notes.sort()
+            notes.reverse()
+            self.q_chord_simple(notes, p.on, p.off)
+        elif algo == 4:
+            # hi chord, low chord
+            notes.extend([x - 12 for x in notes if x >= 12])
+            self.q_chord_simple(notes, p.on, p.off)
+        elif algo == 5:
+            # low chord, hi chord
+            notes.extend([x - 12 for x in notes if x >= 12])
+            notes.reverse()
+            self.q_chord_simple(notes, p.on, p.off)
+        elif algo == 6:
+            # shuffle
+            list_shuffle(notes)
+            self.q_chord_simple(notes, p.on, p.off)
+        elif algo == 7:
+            # double down, shuffle
+            notes.extend([x - 12 for x in notes if x >= 12])
+            list_shuffle(notes)
+            self.q_chord_simple(notes, p.on, p.off)
+        elif algo == 8:
+            # plain chord
+            for n in notes:
                 self.note_buffer.add_note(p.on, n, True)
                 self.note_buffer.add_note(p.off, n, False)
+        elif algo == 9:
+            # double down, plain chord
+            notes.extend([x - 12 for x in notes if x >= 12])
+            for n in notes:
+                self.note_buffer.add_note(p.on, n, True)
+                self.note_buffer.add_note(p.off, n, False)
+
+    def q_chord_simple(self, notes, t_on, t_off):
+            tq = (t_off - t_on) // len(notes)
+            tstart = t_on
+            for n in notes:
+                self.note_buffer.add_note(tstart, n, True)
+                self.note_buffer.add_note(tstart + tq, n, False)
+                tstart += tq
+
 
     def handle_Title(self, p:TLVPacketTitle) -> None:
         self.title = bytes(p.title).decode('ascii').rstrip('\x00')
