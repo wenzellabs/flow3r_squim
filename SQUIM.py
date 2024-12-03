@@ -1,16 +1,20 @@
-from st3m.reactor import Responder
+from st3m.application import Application, ApplicationContext
 from st3m.input import InputController
 import st3m.run
 
 from math import cos, sin
 from socket import AF_INET, SOCK_DGRAM, socket
-import os
-import sys
-sys.path.append('/sd')
-from generated_tlv import *
 import heapq
 import time
-import machine
+
+# hack to be able to run with the generated_tlv.py from both
+# the flow3r menu and through `mpremote run SQUIM.py` / REPL
+try:
+    from .generated_tlv import *
+except ImportError:
+    import sys
+    sys.path.append('/sd/apps/mazzoo-SQUIM')
+    from generated_tlv import *
 
 import bl00mbox
 
@@ -34,8 +38,9 @@ class NoteBuffer:
             return heapq.heappop(self.buffer)
         return None
 
-class SQUIM(Responder):
-    def __init__(self) -> None:
+class SQUIM(Application):
+    def __init__(self, app_ctx: ApplicationContext) -> None:
+        super().__init__(app_ctx)
         self.input = InputController()
         self.radius = 5
         self.twist = 2.9645
@@ -100,7 +105,6 @@ class SQUIM(Responder):
         ctx.rgba(0., .6, 1, .9).move_to(-110, -25).text(f'{self.marquee(self.artist, 17, self.mqc)}')
         ctx.rgba(0., .6, 1, .9).move_to(-110, 25).text(f'{self.marquee(self.title, 17, self.mqc)}')
         #ctx.rgba(5., .5, .8, .8).move_to(-110, 55).text(f'{self.anim_ms}')
-
 
     def think(self, ins: InputState, delta_ms: int) -> None:
         self.input.think(ins, delta_ms)
@@ -213,4 +217,11 @@ class SQUIM(Responder):
                             self._osc_idle[i] = True
             print(f'playing {note}')
 
-st3m.run.run_responder(SQUIM())
+    def on_exit(self) -> None:
+        if self.bl00m is not None:
+            self.bl00m.clear()
+            self.bl00m.free = True
+        self.bl00m = None
+
+if __name__ == '__main__':
+    st3m.run.run_app(SQUIM)
