@@ -54,6 +54,9 @@ class NoteBuffer:
             return heapq.heappop(self.buffer)
         return None
 
+    def panic(self):
+        self.buffer = []
+
 class SQUIM(Application):
     def __init__(self, app_ctx: ApplicationContext) -> None:
         super().__init__(app_ctx)
@@ -169,6 +172,8 @@ class SQUIM(Application):
             self.handle_Artist(p)
         elif isinstance(p, TLVPacketTime):
             self.handle_Time(p)
+        elif isinstance(p, TLVPacketPanic):
+            self.handle_Panic(p)
         else:
             print(f'got UNHANDLED {p.__class__.__name__}')
 
@@ -261,6 +266,12 @@ class SQUIM(Application):
     def handle_Time(self, p:TLVPacketTime) -> None:
         self.powerup_time = p.us_since_1900 - time.ticks_us()
         print(f'his master\'s clock strikes {p.us_since_1900} microseconds after 1900')
+
+    def handle_Panic(self, p:TLVPacketPanic) -> None:
+        self.note_buffer.panic()
+        for i in range(self.poly):
+            self._mixer.signals.input_gain[i].dB = DB_MUTE
+            self._osc_idle[i] = True
 
     def _build_synth(self):
         self.bl00m = bl00mbox.Channel('SQUIM')
