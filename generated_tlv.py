@@ -202,12 +202,13 @@ class TLVPacketScale(TLVPacket):
 
     @staticmethod
     def from_bytes(data):
-        root, *scale_type_id, = struct.unpack('<BB', data[2:])
+        root, scale_type_id, = struct.unpack('<BB', data[2:])
         # reverse lookup for scale_type_name
-        scale_type_name = next(
-            (name for name, value in TLVPacketScale.scale_type_map.items() if value == scale_type_id),
-            None
-        )
+        scale_type_name = None
+        for name, value in TLVPacketScale.scale_type_map.items():
+            if value == scale_type_id:
+                scale_type_name = name
+                break
         if scale_type_name is None:
             # FIXME print is not the smartes move, but raise would be worse
             print(f'unknown scale_type_id {scale_type_id}')
